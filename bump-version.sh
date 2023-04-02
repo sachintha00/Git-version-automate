@@ -14,15 +14,25 @@ WARNING_FLAG="${YELLOW}!"
 NOTICE_FLAG="${CYAN}❯"
 
 get_branch_name() {
-    local branch_name=$1
+    local branch_name
     while [[ -z "$branch_name" ]]; do
         read -p "Please enter a branch name: " branch_name
     done
     echo "$branch_name"
 }
 
+get_latest_tag() {
+    # git fetch --tags > /dev/null 2>&1
+    # git describe --tags --abbrev=0 2> /dev/null
+    git describe --tags $(git rev-list --tags --max-count=1)
+}
+
 get_version_info() {
-    local latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+    local latest_tag=$(get_latest_tag)
+    if [[ -z "$latest_tag" ]]; then
+        latest_tag="v0.0.0"
+    fi
+
     local v_with_major=$(echo "$latest_tag" | cut -d'.' -f1)
     local v_minor=$(echo "$latest_tag" | cut -d'.' -f2)
     local v_patch=$(echo "$latest_tag" | cut -d'.' -f3)
@@ -66,7 +76,7 @@ if [ "$RESPONSE" = "Yes" ]; then RESPONSE="y"; fi
 if [ "$RESPONSE" = "yes" ]; then RESPONSE="y"; fi
 if [ "$RESPONSE" = "YES" ]; then RESPONSE="y"; fi
 if [ "$RESPONSE" = "y" ]; then
-    git merge $branch_name --no-ff -m "$new_version"
+    git merge "$branch_name" --no-ff -m "$new_version"
     git push
     echo -ne "${QUESTION_FLAG} ${CYAN}Do you want to release a version tag? [${WHITE}y${CYAN}]: "
     read RESPONSE
