@@ -24,7 +24,8 @@ get_branch_name() {
 get_latest_tag() {
     # git fetch --tags > /dev/null 2>&1
     # git describe --tags --abbrev=0 2> /dev/null
-    git describe --tags $(git rev-list --tags --max-count=1)
+    # git describe --tags $(git rev-list --tags --max-count=1)
+    git log --grep='^v.*' -1 --pretty=format:"%s"
 }
 
 get_version_info() {
