@@ -53,7 +53,7 @@ v_patch=$(echo "$version_info" | awk '{print $3}')
 v=$(echo "$version_info" | awk '{print $4}')
 v_major=$(echo "$version_info" | awk '{print $5}')
 
-if [[ "$branch_name" == "do"* ]]; then
+if [[ "$branch_name" == "dev"* ]]; then
     v_minor=$((v_minor + 1))
     v_patch=$((0))
 elif [[ "$branch_name" == "fix"* ]]; then
