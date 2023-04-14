@@ -74,7 +74,8 @@ get_branch_name() {
 }
 
 get_latest_tag() {
-    git ls-remote --tags origin | awk -F/ '{print $3}' | grep '^v' | sort -V | tail -n1
+    # git ls-remote --tags origin | awk -F/ '{print $3}' | grep '^v' | sort -V | tail -n1
+    git describe --tags --abbrev=0 --match "v*" origin
 }
 
 get_version_info() {
@@ -146,9 +147,17 @@ merge_and_release_tag() {
 merge_to_dev() {
     if git branch --no-merged | grep -q -E '^( |\*) (do|fix)'; then
         echo "Choose $(header_style 'branches' "#E36D5D") to operate on:"
-        branch=$(gum choose --selected.foreground="$GIT_COLOR" --limit=1 $(git branch --no-merged | grep -E '^( |\*) (do|fix)'))
-        git merge $branch
-        git push
+        local branch=$(gum choose --selected.foreground="$GIT_COLOR" --limit=1 $(git branch --no-merged | grep -E '^( |\*) (do|fix)'))
+
+        # echo "Merge branch '$branch' into dev"
+        
+        if [[ "$branch" == "fix"* ]]; then
+            git merge --no-ff -m "Merge branch '$branch' into dev"
+            git push
+        else
+            git merge $branch
+            git push
+        fi
     fi
 }
 
