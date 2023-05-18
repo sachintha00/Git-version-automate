@@ -13,8 +13,8 @@ header_center_style() {
     text=$1
     color=$2
     gum style --align center --margin "0 13" --padding "2 0" \
-    --foreground \
-    "$color" --bold "$text"
+        --foreground \
+        "$color" --bold "$text"
 }
 
 normal_style() {
@@ -28,6 +28,21 @@ special_style() {
     gum style --foreground "#E36D5D" "$text"
 }
 
+changed_files_style() {
+    files=$1
+    color=$2
+    status=$3
+
+    readarray -t files_array <<<"$files"
+    file_count=${#files_array[@]}
+
+    for file in "${files_array[@]}"; do
+        gum style --align left --width 50 --margin "0 2" --foreground "$color" \
+            "$([[ -n "$status" ]] && echo $status: $file || echo $file)"
+    done
+    echo " "
+}
+
 branch_name_style() {
     text=$1
     gum style --foreground "#E36D5D" "$text"
@@ -39,16 +54,15 @@ main_menu() {
 }
 
 gum style \
-	--foreground "#733C46" --border-foreground "$MAIN_COLOR" --border double \
-	--align center --width 50 --margin "1 2" --padding "2 4" \
-	"$(header_style "GIT Manager" "$MAIN_COLOR")" \
+    --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border double \
+    --align center --width 50 --margin "1 2" --padding "2 4" \
+    "$(header_style "GIT Manager" "$MAIN_COLOR")" \
     "$(main_menu "Sachintha Madhawa")" \
     "$(main_menu "v1.5.0")"
 
 NOW="$(date +'%B %d, %Y')"
 
-spinner()
-{
+spinner() {
     local pid=$1
     local text=$2
     local delay=0.2
@@ -65,13 +79,6 @@ spinner()
 
 # ********************************************************************************************************
 # ********************************************************************************************************
-get_branch_name() {
-    local branch_name
-    while [[ -z "$branch_name" ]]; do
-        read -p "Please enter a branch name: " branch_name
-    done
-    echo "$branch_name"
-}
 
 get_latest_tag() {
     # git ls-remote --tags origin | awk -F/ '{print $3}' | grep '^v' | sort -V | tail -n1
@@ -95,7 +102,11 @@ get_version_info() {
 }
 
 merge_and_release_tag() {
-    branch_name=$(get_branch_name "$1")
+    local branch_name
+    if git branch --no-merged | grep -q -E '^( |\*) (dev|fix)'; then
+        echo "Choose $(header_style 'branches' "#E36D5D") to operate on:"
+        branch_name=$(gum choose --selected.foreground="$GIT_COLOR" --limit=1 $(git branch --no-merged | grep -E '^( |\*) (dev|fix)'))
+    fi
     version_info=$(get_version_info)
 
     v_with_major=$(echo "$version_info" | awk '{print $1}')
@@ -118,22 +129,22 @@ merge_and_release_tag() {
     local new_version="$v_with_major.$v_minor.$v_patch"
 
     gum style \
-	--foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
-	--align left --margin "1 2" --padding "2 4" --width 50 \
-    "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
-	"$(header_style "Old version: $(normal_style "$old_version" "#6c757d")" "#cccccc")" \
-    "$(header_style "New version: $(normal_style "$new_version" "#ffd23f")" "#cccccc")" \
+        --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
+        --align left --margin "1 2" --padding "2 4" --width 50 \
+        "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
+        "$(header_style "Old version: $(normal_style "$old_version" "#6c757d")" "#cccccc")" \
+        "$(header_style "New version: $(normal_style "$new_version" "#ffd23f")" "#cccccc")"
 
     local var=$(gum confirm \
-    --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
-    "Are you sure about this version?" && echo true || false)
+        --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
+        "Are you sure about this version?" && echo true || false)
     if [[ $var ]]; then
         git merge "$branch_name" --no-ff -m "$new_version"
         git push
 
         local var=$(gum confirm \
-        --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
-        "Do you want to release a version tag?" && echo true || false)
+            --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
+            "Do you want to release a version tag?" && echo true || false)
         if [[ $var ]]; then
             git tag $new_version
             git push origin $new_version
@@ -149,15 +160,14 @@ merge_to_dev() {
         echo "Choose $(header_style 'branches' "#E36D5D") to operate on:"
         local branch=$(gum choose --selected.foreground="$GIT_COLOR" --limit=1 $(git branch --no-merged | grep -E '^( |\*) (do|fix)'))
 
-        # echo "Merge branch '$branch' into dev"
-        
         if [[ "$branch" == "fix"* ]]; then
-            git merge --no-ff -m "Merge branch '$branch' into dev"
+            git merge --no-ff "$branch" -m "Merge branch '$branch' into dev"
             git push
         else
             git merge $branch
             git push
         fi
+        git branch --delete "$branch" && git push origin --delete "$branch"
     fi
 }
 
@@ -167,17 +177,17 @@ merge_to_dev() {
 final_squash() {
     local ISSUE_COLOR=$5
     gum style \
-	--foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
-	--align left --margin "1 2" --padding "2 4" --width 50 \
-    "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
-	"$(header_style "First commit hash:" "#cccccc")" "$(normal_style "$1" "#f1c0e8")" \
-    "$(header_style "First commit:" "#cccccc")" "$(normal_style "$2" "#6c757d")" \
-    "$(header_style "New commit:" "#cccccc")" "$(normal_style "$3" "#4361ee")" \
-    "$(header_style "Issue type:" "#cccccc")" "$(normal_style "$4" "$ISSUE_COLOR")"
+        --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
+        --align left --margin "1 2" --padding "2 4" --width 50 \
+        "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
+        "$(header_style "First commit hash:" "#cccccc")" "$(normal_style "$1" "#f1c0e8")" \
+        "$(header_style "First commit:" "#cccccc")" "$(normal_style "$2" "#6c757d")" \
+        "$(header_style "New commit:" "#cccccc")" "$(normal_style "$3" "#4361ee")" \
+        "$(header_style "Issue type:" "#cccccc")" "$(normal_style "$4" "$ISSUE_COLOR")"
 
     local var=$(gum confirm \
-    --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
-    "Are you agree with that ?" && echo true || false)
+        --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
+        "Are you agree with that ?" && echo true || false)
     if [[ $var ]]; then
         git reset --soft $SHA
         git commit --amend -m "$ISSUE_MESSAGE_FORMAT"
@@ -191,27 +201,46 @@ squash() {
     local issue_branch=${BRANCH_NAME//[^a-zA-Z]/}
 
     if [[ "$BRANCH_NAME" == "do"* ]]; then
-        SHA=$(git rev-list ^dev "$BRANCH_NAME" | tail -n 1) 
+        SHA=$(git rev-list ^dev "$BRANCH_NAME" | tail -n 1)
         MESSAGE=$(git log --format=%B -n 1 $SHA)
         ISSUE_MESSAGE_FORMAT=$(gum input --cursor.foreground="#b23a48" --width 70 --header.foreground="$MAIN_COLOR" --header="User your issue title" --value "#$issue_number Feat: " --placeholder="Type commit message...")
         final_squash "$SHA" "$MESSAGE" "$ISSUE_MESSAGE_FORMAT" "Enhancement" "#A3EEEF"
     elif [[ "$BRANCH_NAME" == "fix"* ]]; then
-        SHA=$(git rev-list ^master "$BRANCH_NAME" | tail -n 1) 
+        SHA=$(git rev-list ^master "$BRANCH_NAME" | tail -n 1)
         MESSAGE=$(git log --format=%B -n 1 $SHA)
         ISSUE_MESSAGE_FORMAT=$(gum input --cursor.foreground="#b23a48" --width 70 --header.foreground="$MAIN_COLOR" --header="User your issue title" --value "#$issue_number Fix: " --placeholder="Type commit message...")
         final_squash "$SHA" "$MESSAGE" "$ISSUE_MESSAGE_FORMAT" "Bug" "#D73B4A"
     else
         echo "Invalid branch name"
         exit 1
-    fi 
+    fi
 }
 
 add_changes() {
-    # changes to be commited
+    local git_status=$(git status --porcelain)
+    local untracked_files="$(git ls-files --others --exclude-standard)"
+    local modified_file="$(git ls-files -m)"
+    local staged_changes="$(git diff --cached --name-only)"
+
+    local untracked_count=$(echo "$untracked_files" | wc -l)
+    local modified_count=$(echo "$modified_file" | wc -l)
+    local staged_count=$(echo "$staged_changes" | wc -l)
+
+    gum style \
+        --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
+        --align left --margin "1 2" --padding "2 4" --width 50 \
+        "$(header_center_style "On branch $brnach_name" "$MAIN_COLOR")" \
+        "$([[ -z "$staged_changes" ]] || header_style "Changes to be committed ($staged_count):" "#cccccc")" \
+        "$([[ -z "$staged_changes" ]] || changed_files_style "$staged_changes" "#1F8A70" "modified:")" \
+        "$([[ -z "$modified_file" ]] || header_style "Changes not staged for commit ($modified_count):" "#cccccc")" \
+        "$([[ -z "$modified_file" ]] || changed_files_style "$modified_file" "#C21010" "modified")" \
+        "$([[ -z "$untracked_files" ]] || header_style "Untracked files ($untracked_count):" "#cccccc")" \
+        "$([[ -z "$untracked_files" ]] || changed_files_style "$untracked_files" "#C21010")"
+
     local BRANCH_NAME=$brnach_name
     local SUGGESTED_COMMIT="."
     local ISSUE_MESSAGE=$(gum input --cursor.foreground="#b23a48" --header.foreground="$MAIN_COLOR" \
-    --header="Enter commit message [.]:" --placeholder="Type commit message...")
+        --header="Enter commit message [.]:" --placeholder="Type commit message...")
 
     if [ -z "$ISSUE_MESSAGE" ]; then
         ISSUE_MESSAGE=$SUGGESTED_COMMIT
@@ -270,15 +299,15 @@ release_temp_tag() {
     new_temp_version="$temp_v_with_major.$temp_v_minor.$temp_v_patch"
 
     gum style \
-	--foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
-	--align left --margin "1 2" --padding "2 4" --width 50 \
-    "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
-	"$(header_style "Old version: $(normal_style "$old_temp_version" "#6c757d")" "#cccccc")" \
-    "$(header_style "New version: $(normal_style "$new_temp_version" "#ffd23f")" "#cccccc")" \
+        --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
+        --align left --margin "1 2" --padding "2 4" --width 50 \
+        "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
+        "$(header_style "Old version: $(normal_style "$old_temp_version" "#6c757d")" "#cccccc")" \
+        "$(header_style "New version: $(normal_style "$new_temp_version" "#ffd23f")" "#cccccc")"
 
     local var=$(gum confirm \
-    --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
-    "Are you agree with that ?" && echo true || false)
+        --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
+        "Are you agree with that ?" && echo true || false)
     if [[ $var ]]; then
         git tag $new_temp_version
         git push origin $new_temp_version
@@ -335,7 +364,7 @@ do_fix_branch() {
 }
 
 get_selected_branch() {
-   git rev-parse --abbrev-ref HEAD
+    git rev-parse --abbrev-ref HEAD
 }
 
 brnach_name=$(get_selected_branch)
