@@ -82,7 +82,8 @@ spinner() {
 
 get_latest_tag() {
     # git ls-remote --tags origin | awk -F/ '{print $3}' | grep '^v' | sort -V | tail -n1
-    git describe --tags --abbrev=0 --match "v*" origin
+    # git describe --tags --abbrev=0 --match "v*" origin
+    git log origin/master -n 1 --pretty=format:%s
 }
 
 get_version_info() {
