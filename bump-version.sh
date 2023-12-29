@@ -68,9 +68,9 @@ spinner() {
     local delay=0.2
     local spinstr='|/-\'
     while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
+        local beta=${spinstr#?}
         printf " [%c] %s  " "$spinstr" "$text"
-        local spinstr=$temp${spinstr%"$temp"}
+        local spinstr=$beta${spinstr%"$beta"}
         sleep $delay
         printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
     done
@@ -83,13 +83,14 @@ spinner() {
 get_latest_tag() {
     # git ls-remote --tags origin | awk -F/ '{print $3}' | grep '^v' | sort -V | tail -n1
     # git describe --tags --abbrev=0 --match "v*" origin
-    git log origin/master -n 1 --pretty=format:%s
+    # git log origin/master -n 1 --pretty=format:%s
+    git ls-remote --tags origin | awk '{print $2}' | grep -E '^(refs/tags/v)' | sed 's#refs/tags/##' | sort -V | tail -n 1
 }
 
 get_version_info() {
     local latest_tag=$(get_latest_tag)
     if [[ -z "$latest_tag" ]]; then
-        latest_tag="v0.0.0"
+        latest_tag="v1.0.0"
     fi
 
     local v_with_major=$(echo "$latest_tag" | cut -d'.' -f1)
@@ -256,62 +257,62 @@ add_changes() {
     fi
 }
 
-get_latest_temp_tag() {
-    git ls-remote --tags origin | awk '{print $2}' | grep -E '^(refs/tags/temp-v)' | sed 's#refs/tags/##' | sort -V | tail -n 1
+get_latest_beta_tag() {
+    git ls-remote --tags origin | awk '{print $2}' | grep -E '^(refs/tags/beta-v)' | sed 's#refs/tags/##' | sort -V | tail -n 1
 }
 
-get_temp_version_info() {
-    local latest_temp_tag=$(get_latest_temp_tag)
-    if [[ -z "$latest_temp_tag" ]]; then
-        latest_temp_tag="temp-v0.0.0"
+get_beta_version_info() {
+    local latest_beta_tag=$(get_latest_beta_tag)
+    if [[ -z "$latest_beta_tag" ]]; then
+        latest_beta_tag="beta-v1.0.0"
     fi
 
-    local v_with_major=$(echo "$latest_temp_tag" | cut -d'.' -f1)
-    local v_minor=$(echo "$latest_temp_tag" | cut -d'.' -f2)
-    local v_patch=$(echo "$latest_temp_tag" | cut -d'.' -f3)
+    local v_with_major=$(echo "$latest_beta_tag" | cut -d'.' -f1)
+    local v_minor=$(echo "$latest_beta_tag" | cut -d'.' -f2)
+    local v_patch=$(echo "$latest_beta_tag" | cut -d'.' -f3)
 
     local v=$(echo "$v_with_major" | tr -dc '[:alpha:]')
     local v_major=$(echo "$v_with_major" | tr -dc '[:digit:]')
 
-    echo "$v_with_major $v_minor $v_patch $v $v_major $latest_temp_tag"
+    echo "$v_with_major $v_minor $v_patch $v $v_major $latest_beta_tag"
 }
 
-release_temp_tag() {
+release_beta_tag() {
     local BRANCH_NAME=$brnach_name
-    local temp_version_info=$(get_temp_version_info)
+    local beta_version_info=$(get_beta_version_info)
 
-    local temp_v_with_major=$(echo "$temp_version_info" | awk '{print $1}')
-    local temp_v_minor=$(echo "$temp_version_info" | awk '{print $2}')
-    local temp_v_patch=$(echo "$temp_version_info" | awk '{print $3}')
-    local temp_v=$(echo "$temp_version_info" | awk '{print $4}')
-    local temp_v_major=$(echo "$temp_version_info" | awk '{print $5}')
+    local beta_v_with_major=$(echo "$beta_version_info" | awk '{print $1}')
+    local beta_v_minor=$(echo "$beta_version_info" | awk '{print $2}')
+    local beta_v_patch=$(echo "$beta_version_info" | awk '{print $3}')
+    local beta_v=$(echo "$beta_version_info" | awk '{print $4}')
+    local beta_v_major=$(echo "$beta_version_info" | awk '{print $5}')
 
     if [[ "$BRANCH_NAME" == "do"* || "$BRANCH_NAME" == "dev" ]]; then
-        temp_v_minor=$((temp_v_minor + 1))
-        temp_v_patch=$((0))
+        beta_v_minor=$((beta_v_minor + 1))
+        beta_v_patch=$((0))
     elif [[ "$BRANCH_NAME" == "fix"* ]]; then
-        temp_v_patch=$((temp_v_patch + 1))
+        beta_v_patch=$((beta_v_patch + 1))
     else
         echo "Invalid branch name"
         exit 1
     fi
 
-    old_temp_version=$(echo "$temp_version_info" | awk '{print $6}')
-    new_temp_version="$temp_v_with_major.$temp_v_minor.$temp_v_patch"
+    old_beta_version=$(echo "$beta_version_info" | awk '{print $6}')
+    new_beta_version="$beta_v_with_major.$beta_v_minor.$beta_v_patch"
 
     gum style \
         --foreground "#733C46" --border-foreground "$MAIN_COLOR" --border normal \
         --align left --margin "1 2" --padding "2 4" --width 50 \
         "$(header_center_style "Final Preview" "$MAIN_COLOR")" \
-        "$(header_style "Old version: $(normal_style "$old_temp_version" "#6c757d")" "#cccccc")" \
-        "$(header_style "New version: $(normal_style "$new_temp_version" "#ffd23f")" "#cccccc")"
+        "$(header_style "Old version: $(normal_style "$old_beta_version" "#6c757d")" "#cccccc")" \
+        "$(header_style "New version: $(normal_style "$new_beta_version" "#ffd23f")" "#cccccc")"
 
     local var=$(gum confirm \
         --prompt.foreground="#adb5bd" --selected.foreground="#000814" --unselected.foreground="#ffffff" \
         "Are you agree with that ?" && echo true || false)
     if [[ $var ]]; then
-        git tag $new_temp_version
-        git push origin $new_temp_version
+        git tag $new_beta_version
+        git push origin $new_beta_version
     fi
 }
 
@@ -333,14 +334,14 @@ master_branch() {
 }
 
 dev_branch() {
-    items=("1.Merge" "2.Release Temp Tag" "3.Fetch Updates" "4.Exit")
+    items=("1.Merge" "2.Release beta Tag" "3.Fetch Updates" "4.Exit")
 
     choose=$(gum choose --cursor.foreground="$SECONDARY_COLOR" --item.foreground="$MAIN_COLOR" "${items[@]}")
 
     if [ "${choose%%.*}" = "1" ]; then
         merge_to_dev
     elif [ "${choose%%.*}" = "2" ]; then
-        release_temp_tag
+        release_beta_tag
     elif [ "${choose%%.*}" = "3" ]; then
         echo "Fetch Updates"
     else
@@ -349,7 +350,7 @@ dev_branch() {
 }
 
 do_fix_branch() {
-    items=("1.Changes Add" "2.Squash" "3.Release Temp Tag" "4.Exit")
+    items=("1.Changes Add" "2.Squash" "3.Release beta Tag" "4.Exit")
 
     choose=$(gum choose --cursor.foreground="$SECONDARY_COLOR" --item.foreground="$MAIN_COLOR" "${items[@]}")
 
@@ -358,7 +359,7 @@ do_fix_branch() {
     elif [ "${choose%%.*}" = "2" ]; then
         squash
     elif [ "${choose%%.*}" = "3" ]; then
-        release_temp_tag
+        release_beta_tag
     else
         exit 0
     fi
