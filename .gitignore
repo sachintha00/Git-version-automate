@@ -1,0 +1,5 @@
+**/bump-version.sh
+**/*.env
+!**/temp*.env
+volumes
+**/node_modules
